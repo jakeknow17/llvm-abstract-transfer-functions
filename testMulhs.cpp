@@ -1,6 +1,7 @@
 // Author: Jacob Knowlton
 // Date:   Nov 2024
 
+#include <chrono>
 #include <iostream>
 #include <llvm/ADT/APInt.h>
 #include <llvm/Support/KnownBits.h>
@@ -120,12 +121,15 @@ KnownBits naiveMulhs(const KnownBits &lhs, const KnownBits &rhs) {
 
 void testMulhsTransferFunctions(unsigned BitWidth) {
   std::vector<KnownBits> allKnownBits = enumerateFromBitWidth(BitWidth);
-  size_t totalKnownBits = allKnownBits.size();
+  uint64_t totalKnownBits = allKnownBits.size();
 
   uint64_t compositeMorePrecise = 0;
   uint64_t naiveMorePrecise = 0;
   uint64_t samePrecision = 0;
   uint64_t incomparableResults = 0;
+
+  double totalTimeComposite = 0.0;
+  double totalTimeNaive = 0.0;
 
   // Iterate through all pairs
   for (size_t i = 0; i < totalKnownBits; i++) {
@@ -134,8 +138,15 @@ void testMulhsTransferFunctions(unsigned BitWidth) {
       const KnownBits &RHS = allKnownBits[j];
 
       // Compute composite and naive mulhs
+      auto t1 = std::chrono::high_resolution_clock::now();
       KnownBits composite = KnownBits::mulhs(LHS, RHS);
+      auto t2 = std::chrono::high_resolution_clock::now();
+      totalTimeComposite += (t2 - t1).count();
+
+      t1 = std::chrono::high_resolution_clock::now();
       KnownBits naive = naiveMulhs(LHS, RHS);
+      t2 = std::chrono::high_resolution_clock::now();
+      totalTimeNaive += (t2 - t1).count();
 
       // Check if results are comparable
       bool isIncomparable = false;
@@ -165,17 +176,24 @@ void testMulhsTransferFunctions(unsigned BitWidth) {
     }
   }
 
-  // Step 4: Report results
+  // Calculate average time
+  double avgTimeComposite =
+      totalTimeComposite / (totalKnownBits * totalKnownBits);
+  double avgTimeNaive = totalTimeNaive / (totalKnownBits * totalKnownBits);
+
+  // Report results
   std::cout << "Testing mulhs Transfer Functions for BitWidth = " << BitWidth
-            << "\n";
-  std::cout << "Total abstract values: " << totalKnownBits << "\n";
+            << std::endl;
+  std::cout << "Total abstract values: " << totalKnownBits << std::endl;
   std::cout << "Composite transfer function more precise: "
-            << compositeMorePrecise << "\n";
+            << compositeMorePrecise << std::endl;
   std::cout << "Naive transfer function more precise: " << naiveMorePrecise
-            << "\n";
+            << std::endl;
   std::cout << "Same precision for both transfer functions: " << samePrecision
-            << "\n";
-  std::cout << "Incomparable results: " << incomparableResults << "\n\n";
+            << std::endl;
+  std::cout << "Incomparable results: " << incomparableResults << std::endl;
+  std::cout << "Average composite time: " << avgTimeComposite << std::endl;
+  std::cout << "Average naive time: " << avgTimeNaive << std::endl << std::endl;
 }
 
 int main(int argc, char *argv[]) {
